@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AGS Break Tracker</title>
+<meta name="description" content="AGS break tracker for agents and team leads.">
+<link rel="icon" type="image/png" href="./agslogo-128.png">
+<link rel="apple-touch-icon" href="./agslogo-128.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef3f8;--surface:#fff;--panel:#f7f9fc;--border:#d9e2ef;--text:#172235;--muted:#64748b;--accent:#2563eb;--accent-dark:#1d4ed8;--green:#15803d;--green-soft:#ecfdf5;--red:#dc2626;--red-soft:#fff1f2;--shadow:0 1px 4px rgba(15,23,42,.06),0 12px 24px rgba(15,23,42,.06);--radius:16px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Plus Jakarta Sans",sans-serif;background:linear-gradient(180deg,#f6f9fc,#eef3f8);color:var(--text);font-size:14px;min-height:100vh}
+button,input{font:inherit}
+button{border:none;cursor:pointer}
+img{display:block;max-width:100%}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 16px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#fff;font-size:13px;font-weight:700}
+.btn.sec{background:#fff;color:var(--text);border:1px solid var(--border)}
+.btn.warn{background:linear-gradient(135deg,#f97316,#ea580c)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+input[type=email],input[type=password]{width:100%;min-height:44px;padding:0 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;color:var(--text)}
+input[type=email]:focus,input[type=password]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.fl{display:block;margin-bottom:6px;font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);text-transform:uppercase}
+header{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 22px;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:12px}.brand img{width:auto;height:48px;max-width:56px;object-fit:contain;flex-shrink:0}.brand h1{font-size:18px;font-weight:800;line-height:1.15}.brand p{font-size:11px;color:var(--muted)}
+.header-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.pill{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--border);background:var(--panel);font-size:12px;white-space:nowrap}.status-dot{width:8px;height:8px;border-radius:999px;background:var(--green)}
+main{max-width:1380px;margin:0 auto;padding:18px 22px 28px}
+.summary{padding:18px;margin-bottom:14px}.summary h3,.section-title{font-size:16px;font-weight:800;margin-bottom:10px}.summary-list{display:grid;gap:10px}.summary-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--panel)}.summary-item span{display:block;font-size:12px;color:var(--muted)}.summary-item strong{font-size:18px;font-weight:800}
+.grid-two{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;margin-bottom:14px}.card-body{padding:18px}.break-status,.stack{display:grid;gap:14px}.break-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mini{padding:12px;border:1px solid var(--border);border-radius:14px;background:var(--panel)}.mini span{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}.mini strong{font-size:16px}
+.callout{padding:14px;border-radius:14px;border:1px solid var(--border);background:var(--panel)}.callout.live{background:linear-gradient(135deg,#eff6ff,#dbeafe);border-color:#bfdbfe}.callout.ok{background:linear-gradient(135deg,#ecfdf5,#dcfce7);border-color:#bbf7d0}.callout.warn{background:linear-gradient(135deg,#fff7ed,#ffedd5);border-color:#fed7aa}.callout strong{display:block;font-size:17px;margin-bottom:6px}.callout p{font-size:13px;line-height:1.7;color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:10px}.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{padding:14px;border:1px solid var(--border);border-radius:14px;background:#fff;position:relative;overflow:hidden}.stat:after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,var(--accent),#60a5fa)}.sn{font-size:28px;font-weight:800;line-height:1}.sl{margin-top:6px;font-size:11px;letter-spacing:.4px;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}.section-head p{max-width:72ch;font-size:12px;line-height:1.7;color:var(--muted)}
+.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:14px;background:#fff}.table-wrap.fixed{max-height:340px;overflow:auto}table{width:100%;min-width:760px;border-collapse:collapse;font-size:12px}th,td{padding:11px 12px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}thead th{position:sticky;top:0;background:#f8fafc;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.45px;z-index:1}tbody tr:hover{background:#f8fbff}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid #bfdbfe;background:#edf4ff;color:var(--accent);font-size:11px;font-weight:700}.tag.bad{border-color:#fecaca;background:var(--red-soft);color:var(--red)}.tag.good{border-color:#bbf7d0;background:var(--green-soft);color:var(--green)}.empty{padding:34px 20px;text-align:center;color:var(--muted)}
+.alert-banner{display:none;align-items:flex-start;justify-content:space-between;gap:14px;padding:14px 16px;border-radius:16px;border:1px solid #fecaca;background:linear-gradient(135deg,#fff1f2,#ffe4e6);box-shadow:var(--shadow);margin-bottom:14px}.alert-banner.show{display:flex}.alert-copy strong{display:block;font-size:15px;margin-bottom:4px;color:var(--red)}.alert-copy p{font-size:12px;line-height:1.7;color:#9f1239}
+.toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.toolbar-group{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.field{display:flex;flex-direction:column;gap:6px;min-width:180px}.field input{width:100%;min-height:40px;padding:0 12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--text)}.field input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.login-overlay{position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,rgba(15,23,42,.78),rgba(37,99,235,.55))}.login-card{width:100%;max-width:420px;padding:30px;border-radius:24px;background:#fff;box-shadow:0 22px 60px rgba(15,23,42,.28)}.login-card img{width:102px;height:102px;object-fit:contain;margin:0 auto 14px}.login-card h2{text-align:center;font-size:22px;font-weight:800;margin-bottom:5px}.login-card p{text-align:center;color:var(--muted);font-size:12px;line-height:1.7;margin-bottom:22px}.login-form{display:grid;gap:14px}.remember{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}.remember input{accent-color:var(--accent)}
+.login-error,.toast{display:none;padding:10px 12px;border-radius:12px;font-size:12px}.login-error{border:1px solid #fecaca;background:var(--red-soft);color:var(--red);text-align:center}.toast{position:fixed;right:18px;bottom:18px;z-index:1100;min-width:240px;max-width:340px;border:1px solid #bfdbfe;background:#eff6ff;color:var(--accent);box-shadow:var(--shadow)}.toast.show{display:block}.hidden{display:none!important}
+@media(max-width:960px){.grid-two{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){header{padding:10px 14px;align-items:flex-start;flex-direction:column}.brand img{height:44px;max-width:52px}main{padding:14px}.break-meta,.stats{grid-template-columns:1fr}.actions{flex-direction:column}.actions .btn{width:100%}}
+</style>
+</head>
+<body>
+<div id="login-overlay" class="login-overlay">
+  <div class="login-card">
+    <img src="./agslogo-128.png" alt="AGS Logo">
+    <h2>AGS Break Tracker</h2>
+    <p>Sign in using your AGS email and your assigned password. You can stay signed in on the current computer.</p>
+    <form id="login-form" class="login-form">
+      <div><label class="fl" for="email">Email</label><input id="email" type="email" placeholder="name@company.com" autocomplete="username" required></div>
+      <div><label class="fl" for="password">Password</label><input id="password" type="password" placeholder="Enter password" autocomplete="current-password" required></div>
+      <label class="remember"><input id="remember" type="checkbox"><span>Keep me signed in on this computer</span></label>
+      <button id="login-btn" class="btn" type="submit">Sign In</button>
+      <p id="login-error" class="login-error">Incorrect email or password.</p>
+    </form>
+  </div>
+</div>
+<header>
+  <div class="brand"><img src="./agslogo-128.png" alt="AGS Logo"><div><h1>AGS Break Tracker</h1><p>Live break monitoring for agents and team leads</p></div></div>
+  <div class="header-meta"><div class="pill"><span class="status-dot"></span><span id="sync-label">Waiting for sign-in</span></div><div class="pill" id="role-pill">Role: -</div><button id="notification-btn" class="btn sec" type="button">Enable Alerts</button><button id="logout-btn" class="btn sec" type="button">Log Out</button></div>
+</header>
+<main>
+  <div id="agent-alert" class="alert-banner"><div class="alert-copy"><strong>Overbreak Alert</strong><p id="agent-alert-text">You are already over your allowed break time.</p></div><button id="agent-alert-close" class="btn sec" type="button">Dismiss</button></div>
+  <div id="tl-alert" class="alert-banner"><div class="alert-copy"><strong>Team Overbreak Alert</strong><p id="tl-alert-text">A team member is already over break.</p></div><button id="tl-alert-close" class="btn sec" type="button">Dismiss</button></div>
+  <section class="summary card"><h3>Signed-In User</h3><div class="summary-list"><div class="summary-item"><div><span>Name</span></div><strong id="user-name">-</strong></div><div class="summary-item"><div><span>Email</span></div><strong id="user-email">-</strong></div><div class="summary-item"><div><span>Department</span></div><strong id="user-department">-</strong></div><div class="summary-item"><div><span>Team Lead</span></div><strong id="user-tl">-</strong></div></div></section>
+  <section class="grid-two">
+    <div class="card"><div class="card-body break-status"><div class="section-head"><div><div class="section-title">My Break Control</div></div><div class="tag" id="current-status-tag">Offline</div></div><div id="current-break-callout" class="callout ok"><strong>Ready for next break</strong><p>No active break right now.</p></div><div class="break-meta"><div class="mini"><span>Break Type</span><strong id="current-break-type">-</strong></div><div class="mini"><span>Elapsed</span><strong id="current-break-elapsed">-</strong></div><div class="mini"><span>Expected Return</span><strong id="current-break-return">-</strong></div></div><div class="actions"><button id="start-15-btn" class="btn" type="button">Start 15-Min Break</button><button id="start-60-btn" class="btn sec" type="button">Start 1-Hour Break</button><button id="end-break-btn" class="btn warn" type="button">End Current Break</button></div></div></div>
+    <div class="card"><div class="card-body"><div class="section-head"><div><div class="section-title">Quick Stats</div></div></div><div class="stats"><div class="stat"><div class="sn" id="stat-total-breaks">0</div><div class="sl">My Total Breaks</div></div><div class="stat"><div class="sn" id="stat-overbreaks">0</div><div class="sl">My Overbreaks</div></div><div class="stat"><div class="sn" id="stat-team-live">0</div><div class="sl">Team Live Breaks</div></div><div class="stat"><div class="sn" id="stat-team-overbreaks">0</div><div class="sl">Team Overbreaks</div></div></div></div></div>
+  </section>
+  <section class="card" style="margin-bottom:14px"><div class="card-body"><div class="section-head"><div><div class="section-title">My Break History</div></div></div><div class="table-wrap fixed"><table><thead><tr><th>Date</th><th>Break Type</th><th>Started</th><th>Ended</th><th>Duration</th><th>Status</th></tr></thead><tbody id="my-history-body"><tr><td colspan="6"><div class="empty">Sign in to load your break history.</div></td></tr></tbody></table></div></div></section>
+  <section id="admin-section" class="stack hidden">
+    <div class="card"><div class="card-body"><div class="section-head"><div><div class="section-title">Admin Device Reset</div><p>Only the admin account can access this panel. Reset a trusted device here, then sign in once on the replacement computer so that machine becomes the new trusted device.</p></div></div><div class="toolbar"><div class="toolbar-group"><div class="field"><label class="fl" for="admin-device-search">Search Email</label><input id="admin-device-search" type="text" placeholder="Search employee email"></div></div></div><div class="table-wrap fixed"><table><thead><tr><th>Email</th><th>Device ID</th><th>Assigned</th><th>Last Seen</th><th>Action</th></tr></thead><tbody id="admin-device-body"><tr><td colspan="5"><div class="empty">Sign in as admin to manage trusted devices.</div></td></tr></tbody></table></div></div></div>
+    <div class="card"><div class="card-body"><div class="section-head"><div><div class="section-title">All Currently On Break</div><p>Live company-wide active breaks for admin monitoring.</p></div></div><div class="table-wrap fixed"><table><thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Break Type</th><th>Started</th><th>Elapsed</th><th>Status</th></tr></thead><tbody id="admin-live-body"><tr><td colspan="7"><div class="empty">No active breaks right now.</div></td></tr></tbody></table></div></div></div>
+    <div class="card"><div class="card-body"><div class="section-head"><div><div class="section-title">All Break History</div><p>Company-wide completed break history for audit and review.</p></div></div><div class="toolbar"><div class="toolbar-group"><div class="field"><label class="fl" for="admin-history-from">From</label><input id="admin-history-from" type="date"></div><div class="field"><label class="fl" for="admin-history-to">To</label><input id="admin-history-to" type="date"></div></div><div class="toolbar-group"><button id="admin-history-clear" class="btn sec" type="button">Clear Filter</button><button id="admin-history-export" class="btn" type="button">Export CSV</button></div></div><div class="table-wrap fixed"><table><thead><tr><th>Name</th><th>Email</th><th>Break Type</th><th>Date</th><th>Started</th><th>Ended</th><th>Duration</th><th>Status</th></tr></thead><tbody id="admin-history-body"><tr><td colspan="8"><div class="empty">No break history yet.</div></td></tr></tbody></table></div></div></div>
+  </section>
+  <section id="tl-section" class="stack hidden">
+    <div class="card"><div class="card-body"><div class="section-head"><div><div class="section-title">Currently On Break</div></div><div class="tag" id="team-live-tag">0 active</div></div><div class="table-wrap fixed"><table><thead><tr><th>Name</th><th>Department</th><th>Break Type</th><th>Started</th><th>Elapsed</th><th>Status</th></tr></thead><tbody id="team-live-body"><tr><td colspan="6"><div class="empty">No team members are currently on break.</div></td></tr></tbody></table></div></div></div>
+    <div class="card"><div class="card-body"><div class="section-head"><div><div class="section-title">Team Break History</div></div></div><div class="toolbar"><div class="toolbar-group"><div class="field"><label class="fl" for="team-history-search">Filter Agent</label><input id="team-history-search" type="text" placeholder="Search agent name"></div><div class="field"><label class="fl" for="team-history-from">From</label><input id="team-history-from" type="date"></div><div class="field"><label class="fl" for="team-history-to">To</label><input id="team-history-to" type="date"></div></div><div class="toolbar-group"><button id="team-history-clear" class="btn sec" type="button">Clear Filter</button><button id="team-history-export" class="btn" type="button">Export CSV</button></div></div><div class="table-wrap fixed"><table><thead><tr><th>Name</th><th>Break Type</th><th>Date</th><th>Started</th><th>Ended</th><th>Duration</th><th>Status</th></tr></thead><tbody id="team-history-body"><tr><td colspan="7"><div class="empty">No team break history yet.</div></td></tr></tbody></table></div></div></div>
+    <div class="card"><div class="card-body"><div class="section-head"><div><div class="section-title">Team Overbreak History</div></div></div><div class="table-wrap fixed"><table><thead><tr><th>Name</th><th>Break Type</th><th>Date</th><th>Duration</th><th>Over By</th></tr></thead><tbody id="team-overbreak-body"><tr><td colspan="5"><div class="empty">No overbreak records yet.</div></td></tr></tbody></table></div></div></div>
+  </section>
+</main>
+<div id="toast" class="toast"></div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

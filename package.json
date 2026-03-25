@@ -1,0 +1,16 @@
+{
+  "name": "ags-break-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "netlify dev",
+    "check": "node --check app.js && node --check netlify/functions/api.mjs && node --check netlify/functions/_lib/shared.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^23.9.0"
+  }
+}
