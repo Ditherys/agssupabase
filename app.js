@@ -702,9 +702,7 @@ function stopPolling() {
 }
 
 function shouldPollInCurrentTab() {
-  if (!state.profile) return true;
-  if (state.profile.role !== "agent") return true;
-  return document.visibilityState === "visible";
+  return true;
 }
 
 async function onVisibilityChange() {
