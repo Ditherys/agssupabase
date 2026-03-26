@@ -21,6 +21,9 @@ const state = {
   audioContext: null,
   dismissedAgentAlert: "",
   dismissedTlAlert: "",
+  statsFrom: "",
+  statsTo: "",
+  statsDetailedRows: null,
   teamHistoryFilter: "",
   teamHistoryFrom: "",
   teamHistoryTo: "",
@@ -63,16 +66,28 @@ const els = {
   start15Btn: document.getElementById("start-15-btn"),
   start60Btn: document.getElementById("start-60-btn"),
   endBreakBtn: document.getElementById("end-break-btn"),
-  statTotalBreaks: document.getElementById("stat-total-breaks"),
-  statOverbreaks: document.getElementById("stat-overbreaks"),
-  statTeamLive: document.getElementById("stat-team-live"),
-  statTeamOverbreaks: document.getElementById("stat-team-overbreaks"),
+  statsFrom: document.getElementById("stats-from"),
+  statsTo: document.getElementById("stats-to"),
+  statsClear: document.getElementById("stats-clear"),
+  stat1Value: document.getElementById("stat-1-value"),
+  stat1Label: document.getElementById("stat-1-label"),
+  stat2Value: document.getElementById("stat-2-value"),
+  stat2Label: document.getElementById("stat-2-label"),
+  stat3Value: document.getElementById("stat-3-value"),
+  stat3Label: document.getElementById("stat-3-label"),
+  stat4Value: document.getElementById("stat-4-value"),
+  stat4Label: document.getElementById("stat-4-label"),
+  stat5Value: document.getElementById("stat-5-value"),
+  stat5Label: document.getElementById("stat-5-label"),
+  stat6Value: document.getElementById("stat-6-value"),
+  stat6Label: document.getElementById("stat-6-label"),
   myHistory15Body: document.getElementById("my-history-15-body"),
   myHistory60Body: document.getElementById("my-history-60-body"),
   adminSection: document.getElementById("admin-section"),
   adminDeviceSearch: document.getElementById("admin-device-search"),
   adminDeviceBody: document.getElementById("admin-device-body"),
-  adminLiveBody: document.getElementById("admin-live-body"),
+  adminLive15Body: document.getElementById("admin-live-15-body"),
+  adminLive60Body: document.getElementById("admin-live-60-body"),
   adminHistory15Body: document.getElementById("admin-history-15-body"),
   adminHistory60Body: document.getElementById("admin-history-60-body"),
   adminHistoryFrom: document.getElementById("admin-history-from"),
@@ -81,7 +96,8 @@ const els = {
   adminHistoryExport: document.getElementById("admin-history-export"),
   tlSection: document.getElementById("tl-section"),
   teamLiveTag: document.getElementById("team-live-tag"),
-  teamLiveBody: document.getElementById("team-live-body"),
+  teamLive15Body: document.getElementById("team-live-15-body"),
+  teamLive60Body: document.getElementById("team-live-60-body"),
   teamHistorySearch: document.getElementById("team-history-search"),
   teamHistoryFrom: document.getElementById("team-history-from"),
   teamHistoryTo: document.getElementById("team-history-to"),
@@ -101,6 +117,9 @@ function bootstrap() {
   els.notificationBtn.addEventListener("click", enableNotifications);
   els.logoutBtn.addEventListener("click", logout);
   document.addEventListener("visibilitychange", onVisibilityChange);
+  els.statsFrom?.addEventListener("input", onStatsDateChange);
+  els.statsTo?.addEventListener("input", onStatsDateChange);
+  els.statsClear?.addEventListener("click", clearStatsFilter);
   els.teamHistorySearch?.addEventListener("input", onTeamHistoryFilterChange);
   els.teamHistoryFrom?.addEventListener("input", onTeamHistoryDateChange);
   els.teamHistoryTo?.addEventListener("input", onTeamHistoryDateChange);
@@ -262,6 +281,7 @@ async function loadDashboard({ silent = false } = {}) {
   const dashboard = await buildDashboard(state.profile);
   state.dashboard = dashboard;
   if (!silent) {
+    state.statsDetailedRows = null;
     state.teamHistoryDetailed = null;
     state.adminHistoryDetailed = null;
   }
@@ -404,11 +424,7 @@ function render() {
   renderTlPanels(profile.role, dashboard.teamLive || [], getFilteredTeamHistory(), dashboard.teamOverbreaks || []);
   renderAlerts();
   processNotifications();
-
-  els.statTotalBreaks.textContent = String(dashboard.myHistoryCount || 0);
-  els.statOverbreaks.textContent = String(dashboard.myOverbreakCount || 0);
-  els.statTeamLive.textContent = profile.role === "tl" ? String((dashboard.teamLive || []).length) : "-";
-  els.statTeamOverbreaks.textContent = profile.role === "tl" ? String(dashboard.teamOverbreakCount || 0) : "-";
+  renderQuickStats();
   setSync(`Last Sync ${formatTime(new Date().toISOString())}`);
   updateNotificationButton();
 }
@@ -494,9 +510,16 @@ function renderAdminPanel(role, devices) {
 }
 
 function renderAdminBreaks(activeRows, historyRows) {
-  els.adminLiveBody.innerHTML = activeRows.length
-    ? activeRows.map((item) => `<tr><td>${escapeHtml(item.employeeName)}</td><td>${escapeHtml(item.employeeEmail)}</td><td>${escapeHtml(item.department || "-")}</td><td>${escapeHtml(item.breakLabel)}</td><td>${formatTime(item.startedAt)}</td><td>${formatElapsed(item.startedAt)}</td><td>${getOverMinutes(item.startedAt, item.allowedMinutes) > 0 ? `<span class="tag bad">Over by ${getOverMinutes(item.startedAt, item.allowedMinutes)}m</span>` : '<span class="tag good">Within limit</span>'}</td></tr>`).join("")
-    : '<tr><td colspan="7"><div class="empty">No active breaks right now.</div></td></tr>';
+  renderLiveTable(els.adminLive15Body, activeRows.filter((item) => item.breakType === "15m"), {
+    colspan: 6,
+    empty: "No active 15-minute breaks right now.",
+    includeEmail: true
+  });
+  renderLiveTable(els.adminLive60Body, activeRows.filter((item) => item.breakType === "60m"), {
+    colspan: 6,
+    empty: "No active 1-hour breaks right now.",
+    includeEmail: true
+  });
 
   renderHistoryTable(els.adminHistory15Body, historyRows.filter((item) => item.breakType === "15m"), {
     colspan: 7,
@@ -516,9 +539,14 @@ function renderTlPanels(role, liveRows, historyRows, overbreakRows) {
   if (!isTl) return;
 
   els.teamLiveTag.textContent = `${liveRows.length} active`;
-  els.teamLiveBody.innerHTML = liveRows.length
-    ? liveRows.map((item) => `<tr><td>${escapeHtml(item.employeeName)}</td><td>${escapeHtml(item.department || "-")}</td><td>${escapeHtml(item.breakLabel)}</td><td>${formatTime(item.startedAt)}</td><td>${formatElapsed(item.startedAt)}</td><td>${getOverMinutes(item.startedAt, item.allowedMinutes) > 0 ? `<span class="tag bad">Over by ${getOverMinutes(item.startedAt, item.allowedMinutes)}m</span>` : '<span class="tag good">Within limit</span>'}</td></tr>`).join("")
-    : '<tr><td colspan="6"><div class="empty">No team members are currently on break.</div></td></tr>';
+  renderLiveTable(els.teamLive15Body, liveRows.filter((item) => item.breakType === "15m"), {
+    colspan: 5,
+    empty: "No team members are on a 15-minute break."
+  });
+  renderLiveTable(els.teamLive60Body, liveRows.filter((item) => item.breakType === "60m"), {
+    colspan: 5,
+    empty: "No team members are on a 1-hour break."
+  });
 
   renderHistoryTable(els.teamHistory15Body, historyRows.filter((item) => item.breakType === "15m"), {
     colspan: 6,
@@ -765,13 +793,81 @@ function renderHistoryTable(target, rows, options = {}) {
   }).join("");
 }
 
+function renderLiveTable(target, rows, options = {}) {
+  if (!target) return;
+  const includeEmail = Boolean(options.includeEmail);
+  const colspan = options.colspan || (includeEmail ? 6 : 5);
+  if (!rows.length) {
+    target.innerHTML = `<tr><td colspan="${colspan}"><div class="empty">${options.empty || "No active breaks right now."}</div></td></tr>`;
+    return;
+  }
+
+  target.innerHTML = rows.map((item) => {
+    const cells = [
+      `<td>${escapeHtml(item.employeeName)}</td>`
+    ];
+    if (includeEmail) {
+      cells.push(`<td>${escapeHtml(item.employeeEmail)}</td>`);
+    }
+    cells.push(
+      `<td>${escapeHtml(item.department || "-")}</td>`,
+      `<td>${formatTime(item.startedAt)}</td>`,
+      `<td>${formatElapsed(item.startedAt)}</td>`,
+      `<td>${getOverMinutes(item.startedAt, item.allowedMinutes) > 0 ? `<span class="tag bad">Over by ${getOverMinutes(item.startedAt, item.allowedMinutes)}m</span>` : '<span class="tag good">Within limit</span>'}</td>`
+    );
+    return `<tr>${cells.join("")}</tr>`;
+  }).join("");
+}
+
 function renderOverbreakTable(target, rows, emptyText) {
   if (!target) return;
   if (!rows.length) {
-    target.innerHTML = `<tr><td colspan="4"><div class="empty">${emptyText}</div></td></tr>`;
+    target.innerHTML = `<tr><td colspan="6"><div class="empty">${emptyText}</div></td></tr>`;
     return;
   }
-  target.innerHTML = rows.map((item) => `<tr><td>${escapeHtml(item.employeeName)}</td><td>${formatDate(item.startedAt)}</td><td>${formatDuration(item)}</td><td><span class="tag bad">${item.overMinutes}m</span></td></tr>`).join("");
+  target.innerHTML = rows.map((item) => `<tr><td>${escapeHtml(item.employeeName)}</td><td>${formatDate(item.startedAt)}</td><td>${formatTime(item.startedAt)}</td><td>${formatTime(item.endedAt)}</td><td>${formatDuration(item)}</td><td><span class="tag bad">${item.overMinutes}m</span></td></tr>`).join("");
+}
+
+function renderQuickStats() {
+  const rows = getStatsRows();
+  const scopeLabel = state.profile?.role === "admin"
+    ? "Company"
+    : state.profile?.role === "tl"
+      ? "Team"
+      : "My";
+  const break15 = rows.filter((item) => item.breakType === "15m");
+  const break60 = rows.filter((item) => item.breakType === "60m");
+  const overbreaks = rows.filter((item) => Number(item.overMinutes || 0) > 0);
+  const over15 = break15.filter((item) => Number(item.overMinutes || 0) > 0);
+  const over60 = break60.filter((item) => Number(item.overMinutes || 0) > 0);
+  const totalOverSeconds = overbreaks.reduce((sum, item) => sum + getOverDurationSeconds(item), 0);
+
+  els.stat1Value.textContent = String(break15.length);
+  els.stat1Label.textContent = `${scopeLabel} 15-Min Breaks`;
+  els.stat2Value.textContent = String(break60.length);
+  els.stat2Label.textContent = `${scopeLabel} 1-Hour Breaks`;
+  els.stat3Value.textContent = String(overbreaks.length);
+  els.stat3Label.textContent = `${scopeLabel} Overbreaks`;
+  els.stat4Value.textContent = formatSecondsAsText(totalOverSeconds);
+  els.stat4Label.textContent = `${scopeLabel} Overbreak Time`;
+  els.stat5Value.textContent = String(over15.length);
+  els.stat5Label.textContent = `${scopeLabel} 15-Min Overbreaks`;
+  els.stat6Value.textContent = String(over60.length);
+  els.stat6Label.textContent = `${scopeLabel} 1-Hour Overbreaks`;
+}
+
+function getStatsRows() {
+  if (state.statsDetailedRows) return state.statsDetailedRows;
+  if (state.profile?.role === "admin") return state.dashboard?.adminHistory || [];
+  if (state.profile?.role === "tl") return state.dashboard?.teamHistory || [];
+  return state.dashboard?.myHistory || [];
+}
+
+function getOverDurationSeconds(item) {
+  const overMinutes = Number(item?.overMinutes || 0);
+  const totalSeconds = Number(item?.durationSeconds || 0) || Math.max(0, Number(item?.durationMinutes || 0) * 60);
+  if (!overMinutes || !totalSeconds) return 0;
+  return Math.min(totalSeconds, overMinutes * 60);
 }
 
 function refreshVisibleHistoryAfterBreak() {
@@ -873,6 +969,45 @@ function updateNotificationButton() {
 function onTeamHistoryFilterChange(event) {
   state.teamHistoryFilter = event.target.value.trim().toLowerCase();
   if (state.profile?.role === "tl") scheduleTeamHistoryRefresh();
+}
+
+function onStatsDateChange() {
+  state.statsFrom = els.statsFrom?.value || "";
+  state.statsTo = els.statsTo?.value || "";
+  refreshStatsDetail();
+}
+
+function clearStatsFilter() {
+  state.statsFrom = "";
+  state.statsTo = "";
+  state.statsDetailedRows = null;
+  if (els.statsFrom) els.statsFrom.value = "";
+  if (els.statsTo) els.statsTo.value = "";
+  renderQuickStats();
+}
+
+function hasStatsFilters() {
+  return Boolean(state.statsFrom || state.statsTo);
+}
+
+async function refreshStatsDetail() {
+  if (!state.profile) return;
+  if (!hasStatsFilters()) {
+    state.statsDetailedRows = null;
+    renderQuickStats();
+    return;
+  }
+
+  try {
+    const scope = state.profile.role === "admin" ? "admin" : state.profile.role === "tl" ? "team" : "self";
+    state.statsDetailedRows = await fetchHistoryRows(scope, {
+      from: state.statsFrom,
+      to: state.statsTo
+    });
+    renderQuickStats();
+  } catch (error) {
+    showToast(error.message || "Unable to load filtered quick stats.");
+  }
 }
 
 function onTeamHistoryDateChange() {
@@ -1031,6 +1166,10 @@ async function refreshAdminHistoryDetail() {
 
 async function fetchHistoryRows(scope, filters = {}) {
   let query = supabase.from("break_history").select("*").order("ended_at", { ascending: false });
+  if (scope === "self") {
+    if (!state.profile) throw new Error("Forbidden.");
+    query = query.eq("employee_email", state.profile.email);
+  }
   if (scope === "team") {
     if (state.profile?.role !== "tl") throw new Error("Forbidden.");
     query = query.eq("tl_email", state.profile.email);
