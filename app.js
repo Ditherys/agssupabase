@@ -24,6 +24,8 @@ const state = {
   statsFrom: "",
   statsTo: "",
   statsDetailedRows: null,
+  myHistoryCollapsed: false,
+  myHistoryRole: "",
   teamHistoryFilter: "",
   teamHistoryFrom: "",
   teamHistoryTo: "",
@@ -52,6 +54,9 @@ const els = {
   userEmail: document.getElementById("user-email"),
   userDepartment: document.getElementById("user-department"),
   userTl: document.getElementById("user-tl"),
+  myHistorySection: document.getElementById("my-history-section"),
+  myHistoryContent: document.getElementById("my-history-content"),
+  myHistoryToggle: document.getElementById("my-history-toggle"),
   currentStatusTag: document.getElementById("current-status-tag"),
   currentBreakCallout: document.getElementById("current-break-callout"),
   currentBreakType: document.getElementById("current-break-type"),
@@ -117,6 +122,7 @@ function bootstrap() {
   els.notificationBtn.addEventListener("click", enableNotifications);
   els.logoutBtn.addEventListener("click", logout);
   document.addEventListener("visibilitychange", onVisibilityChange);
+  els.myHistoryToggle?.addEventListener("click", toggleMyHistory);
   els.statsFrom?.addEventListener("input", onStatsDateChange);
   els.statsTo?.addEventListener("input", onStatsDateChange);
   els.statsClear?.addEventListener("click", clearStatsFilter);
@@ -417,6 +423,7 @@ function render() {
   els.userEmail.textContent = profile.email;
   els.userDepartment.textContent = profile.department || "-";
   els.userTl.textContent = profile.tlEmail || "-";
+  renderMyHistoryVisibility();
 
   renderCurrentBreak(dashboard.activeBreak);
   renderMyHistory(dashboard.myHistory || []);
@@ -854,6 +861,30 @@ function renderQuickStats() {
   els.stat5Label.textContent = `${scopeLabel} 15-Min Overbreaks`;
   els.stat6Value.textContent = String(over60.length);
   els.stat6Label.textContent = `${scopeLabel} 1-Hour Overbreaks`;
+}
+
+function renderMyHistoryVisibility() {
+  const isTl = state.profile?.role === "tl";
+  if (!isTl) {
+    state.myHistoryCollapsed = false;
+  } else if (state.myHistoryRole !== "tl") {
+    state.myHistoryCollapsed = true;
+  }
+  state.myHistoryRole = state.profile?.role || "";
+  els.myHistoryToggle?.classList.toggle("hidden", !isTl);
+  if (els.myHistoryToggle) {
+    els.myHistoryToggle.textContent = state.myHistoryCollapsed ? "Show My Break History" : "Hide My Break History";
+  }
+  els.myHistoryContent?.classList.toggle("collapsed-content", state.myHistoryCollapsed);
+}
+
+function toggleMyHistory() {
+  if (state.profile?.role !== "tl") return;
+  state.myHistoryCollapsed = !state.myHistoryCollapsed;
+  if (els.myHistoryToggle) {
+    els.myHistoryToggle.textContent = state.myHistoryCollapsed ? "Show My Break History" : "Hide My Break History";
+  }
+  els.myHistoryContent?.classList.toggle("collapsed-content", state.myHistoryCollapsed);
 }
 
 function getStatsRows() {
