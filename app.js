@@ -17,6 +17,7 @@ const state = {
   dashboard: null,
   pollTimer: null,
   clockTimer: null,
+  breakActionInFlight: false,
   audioContext: null,
   dismissedAgentAlert: "",
   dismissedTlAlert: "",
@@ -66,12 +67,14 @@ const els = {
   statOverbreaks: document.getElementById("stat-overbreaks"),
   statTeamLive: document.getElementById("stat-team-live"),
   statTeamOverbreaks: document.getElementById("stat-team-overbreaks"),
-  myHistoryBody: document.getElementById("my-history-body"),
+  myHistory15Body: document.getElementById("my-history-15-body"),
+  myHistory60Body: document.getElementById("my-history-60-body"),
   adminSection: document.getElementById("admin-section"),
   adminDeviceSearch: document.getElementById("admin-device-search"),
   adminDeviceBody: document.getElementById("admin-device-body"),
   adminLiveBody: document.getElementById("admin-live-body"),
-  adminHistoryBody: document.getElementById("admin-history-body"),
+  adminHistory15Body: document.getElementById("admin-history-15-body"),
+  adminHistory60Body: document.getElementById("admin-history-60-body"),
   adminHistoryFrom: document.getElementById("admin-history-from"),
   adminHistoryTo: document.getElementById("admin-history-to"),
   adminHistoryClear: document.getElementById("admin-history-clear"),
@@ -84,8 +87,10 @@ const els = {
   teamHistoryTo: document.getElementById("team-history-to"),
   teamHistoryClear: document.getElementById("team-history-clear"),
   teamHistoryExport: document.getElementById("team-history-export"),
-  teamHistoryBody: document.getElementById("team-history-body"),
-  teamOverbreakBody: document.getElementById("team-overbreak-body"),
+  teamHistory15Body: document.getElementById("team-history-15-body"),
+  teamHistory60Body: document.getElementById("team-history-60-body"),
+  teamOverbreak15Body: document.getElementById("team-overbreak-15-body"),
+  teamOverbreak60Body: document.getElementById("team-overbreak-60-body"),
   toast: document.getElementById("toast")
 };
 
@@ -404,7 +409,7 @@ function render() {
   els.statOverbreaks.textContent = String(dashboard.myOverbreakCount || 0);
   els.statTeamLive.textContent = profile.role === "tl" ? String((dashboard.teamLive || []).length) : "-";
   els.statTeamOverbreaks.textContent = profile.role === "tl" ? String(dashboard.teamOverbreakCount || 0) : "-";
-  setSync(`Last sync ${formatTime(new Date().toISOString())}`);
+  setSync(`Last Sync ${formatTime(new Date().toISOString())}`);
   updateNotificationButton();
 }
 
@@ -446,20 +451,26 @@ function renderCurrentBreak(activeBreak) {
   els.currentBreakCallout.className = `callout ${isOver ? "warn" : "live"}`;
   els.currentBreakCallout.innerHTML = `<strong>${activeBreak.breakLabel} in progress</strong><p>${isOver ? "This break has passed the allowed time." : "You are currently on break. End the break when you return."}</p>`;
   els.currentBreakType.textContent = activeBreak.breakLabel;
-  els.currentBreakElapsed.textContent = formatMinutes(getElapsedMinutes(activeBreak.startedAt));
+  els.currentBreakElapsed.textContent = formatElapsed(activeBreak.startedAt);
   els.currentBreakReturn.textContent = formatDateTime(activeBreak.expectedEndAt);
 }
 
 function renderMyHistory(rows) {
   if (state.profile?.role === "admin") {
-    els.myHistoryBody.innerHTML = '<tr><td colspan="6"><div class="empty">Admin accounts do not have break history.</div></td></tr>';
+    els.myHistory15Body.innerHTML = '<tr><td colspan="5"><div class="empty">Admin accounts do not have break history.</div></td></tr>';
+    els.myHistory60Body.innerHTML = '<tr><td colspan="5"><div class="empty">Admin accounts do not have break history.</div></td></tr>';
     return;
   }
-  if (!rows.length) {
-    els.myHistoryBody.innerHTML = '<tr><td colspan="6"><div class="empty">No break history yet.</div></td></tr>';
-    return;
-  }
-  els.myHistoryBody.innerHTML = rows.map((item) => `<tr><td>${formatDate(item.startedAt)}</td><td>${escapeHtml(item.breakLabel)}</td><td>${formatTime(item.startedAt)}</td><td>${formatTime(item.endedAt)}</td><td>${formatDuration(item)}</td><td>${item.overMinutes > 0 ? `<span class="tag bad">Over by ${item.overMinutes}m</span>` : '<span class="tag good">Within limit</span>'}</td></tr>`).join("");
+  renderHistoryTable(els.myHistory15Body, rows.filter((item) => item.breakType === "15m"), {
+    colspan: 5,
+    empty: "No 15-minute break history yet.",
+    includeName: false
+  });
+  renderHistoryTable(els.myHistory60Body, rows.filter((item) => item.breakType === "60m"), {
+    colspan: 5,
+    empty: "No 1-hour break history yet.",
+    includeName: false
+  });
 }
 
 function renderAdminPanel(role, devices) {
@@ -487,9 +498,16 @@ function renderAdminBreaks(activeRows, historyRows) {
     ? activeRows.map((item) => `<tr><td>${escapeHtml(item.employeeName)}</td><td>${escapeHtml(item.employeeEmail)}</td><td>${escapeHtml(item.department || "-")}</td><td>${escapeHtml(item.breakLabel)}</td><td>${formatTime(item.startedAt)}</td><td>${formatElapsed(item.startedAt)}</td><td>${getOverMinutes(item.startedAt, item.allowedMinutes) > 0 ? `<span class="tag bad">Over by ${getOverMinutes(item.startedAt, item.allowedMinutes)}m</span>` : '<span class="tag good">Within limit</span>'}</td></tr>`).join("")
     : '<tr><td colspan="7"><div class="empty">No active breaks right now.</div></td></tr>';
 
-  els.adminHistoryBody.innerHTML = historyRows.length
-    ? historyRows.map((item) => `<tr><td>${escapeHtml(item.employeeName)}</td><td>${escapeHtml(item.employeeEmail)}</td><td>${escapeHtml(item.breakLabel)}</td><td>${formatDate(item.startedAt)}</td><td>${formatTime(item.startedAt)}</td><td>${formatTime(item.endedAt)}</td><td>${formatDuration(item)}</td><td>${item.overMinutes > 0 ? `<span class="tag bad">Over by ${item.overMinutes}m</span>` : '<span class="tag good">Within limit</span>'}</td></tr>`).join("")
-    : '<tr><td colspan="8"><div class="empty">No break history yet.</div></td></tr>';
+  renderHistoryTable(els.adminHistory15Body, historyRows.filter((item) => item.breakType === "15m"), {
+    colspan: 7,
+    empty: "No 15-minute break history yet.",
+    includeEmail: true
+  });
+  renderHistoryTable(els.adminHistory60Body, historyRows.filter((item) => item.breakType === "60m"), {
+    colspan: 7,
+    empty: "No 1-hour break history yet.",
+    includeEmail: true
+  });
 }
 
 function renderTlPanels(role, liveRows, historyRows, overbreakRows) {
@@ -502,17 +520,23 @@ function renderTlPanels(role, liveRows, historyRows, overbreakRows) {
     ? liveRows.map((item) => `<tr><td>${escapeHtml(item.employeeName)}</td><td>${escapeHtml(item.department || "-")}</td><td>${escapeHtml(item.breakLabel)}</td><td>${formatTime(item.startedAt)}</td><td>${formatElapsed(item.startedAt)}</td><td>${getOverMinutes(item.startedAt, item.allowedMinutes) > 0 ? `<span class="tag bad">Over by ${getOverMinutes(item.startedAt, item.allowedMinutes)}m</span>` : '<span class="tag good">Within limit</span>'}</td></tr>`).join("")
     : '<tr><td colspan="6"><div class="empty">No team members are currently on break.</div></td></tr>';
 
-  els.teamHistoryBody.innerHTML = historyRows.length
-    ? historyRows.map((item) => `<tr><td>${escapeHtml(item.employeeName)}</td><td>${escapeHtml(item.breakLabel)}</td><td>${formatDate(item.startedAt)}</td><td>${formatTime(item.startedAt)}</td><td>${formatTime(item.endedAt)}</td><td>${formatDuration(item)}</td><td>${item.overMinutes > 0 ? `<span class="tag bad">Over by ${item.overMinutes}m</span>` : '<span class="tag good">Within limit</span>'}</td></tr>`).join("")
-    : '<tr><td colspan="7"><div class="empty">No team break history yet.</div></td></tr>';
+  renderHistoryTable(els.teamHistory15Body, historyRows.filter((item) => item.breakType === "15m"), {
+    colspan: 6,
+    empty: "No 15-minute team history yet."
+  });
+  renderHistoryTable(els.teamHistory60Body, historyRows.filter((item) => item.breakType === "60m"), {
+    colspan: 6,
+    empty: "No 1-hour team history yet."
+  });
 
-  els.teamOverbreakBody.innerHTML = overbreakRows.length
-    ? overbreakRows.map((item) => `<tr><td>${escapeHtml(item.employeeName)}</td><td>${escapeHtml(item.breakLabel)}</td><td>${formatDate(item.startedAt)}</td><td>${formatDuration(item)}</td><td><span class="tag bad">${item.overMinutes}m</span></td></tr>`).join("")
-    : '<tr><td colspan="5"><div class="empty">No overbreak records yet.</div></td></tr>';
+  renderOverbreakTable(els.teamOverbreak15Body, overbreakRows.filter((item) => item.breakType === "15m"), "No 15-minute overbreak records yet.");
+  renderOverbreakTable(els.teamOverbreak60Body, overbreakRows.filter((item) => item.breakType === "60m"), "No 1-hour overbreak records yet.");
 }
 
 async function startBreak(type) {
+  if (state.breakActionInFlight) return;
   try {
+    state.breakActionInFlight = true;
     disableBreakButtons(true);
     const existing = await getSingleRow("active_breaks", "employee_email", state.profile.email);
     if (existing) throw new Error("You already have an active break.");
@@ -542,15 +566,17 @@ async function startBreak(type) {
   } catch (error) {
     showToast(error.message || "Unable to start break.");
   } finally {
+    state.breakActionInFlight = false;
     disableBreakButtons(false);
   }
 }
 
 async function endBreak() {
   const activeBreak = state.dashboard?.activeBreak;
-  if (!activeBreak) return;
+  if (!activeBreak || state.breakActionInFlight) return;
 
   try {
+    state.breakActionInFlight = true;
     disableBreakButtons(true);
     applyOptimisticEndBreak(activeBreak);
     const endedAt = new Date().toISOString();
@@ -587,6 +613,7 @@ async function endBreak() {
   } catch (error) {
     showToast(error.message || "Unable to end break.");
   } finally {
+    state.breakActionInFlight = false;
     disableBreakButtons(false);
   }
 }
@@ -682,7 +709,7 @@ function startClock() {
   if (state.clockTimer) window.clearInterval(state.clockTimer);
   state.clockTimer = window.setInterval(() => {
     if (!state.dashboard) return;
-    setSync(`Last sync ${formatTime(new Date().toISOString())}`);
+    setSync(`Last Sync ${formatTime(new Date().toISOString())}`);
     renderCurrentBreak(state.dashboard.activeBreak || null);
     renderAlerts();
     if (state.profile?.role === "tl") {
@@ -707,6 +734,44 @@ function applyOptimisticEndBreak(activeBreak) {
   };
 
   render();
+}
+
+function renderHistoryTable(target, rows, options = {}) {
+  if (!target) return;
+  const includeName = options.includeName !== false;
+  const includeEmail = Boolean(options.includeEmail);
+  const colspan = options.colspan || (includeEmail ? 7 : 6);
+  if (!rows.length) {
+    target.innerHTML = `<tr><td colspan="${colspan}"><div class="empty">${options.empty || "No break history yet."}</div></td></tr>`;
+    return;
+  }
+
+  target.innerHTML = rows.map((item) => {
+    const cells = [];
+    if (includeName) {
+      cells.push(`<td>${escapeHtml(item.employeeName)}</td>`);
+    }
+    if (includeEmail) {
+      cells.push(`<td>${escapeHtml(item.employeeEmail)}</td>`);
+    }
+    cells.push(
+      `<td>${formatDate(item.startedAt)}</td>`,
+      `<td>${formatTime(item.startedAt)}</td>`,
+      `<td>${formatTime(item.endedAt)}</td>`,
+      `<td>${formatDuration(item)}</td>`,
+      `<td>${item.overMinutes > 0 ? `<span class="tag bad">Over by ${item.overMinutes}m</span>` : '<span class="tag good">Within limit</span>'}</td>`
+    );
+    return `<tr>${cells.join("")}</tr>`;
+  }).join("");
+}
+
+function renderOverbreakTable(target, rows, emptyText) {
+  if (!target) return;
+  if (!rows.length) {
+    target.innerHTML = `<tr><td colspan="4"><div class="empty">${emptyText}</div></td></tr>`;
+    return;
+  }
+  target.innerHTML = rows.map((item) => `<tr><td>${escapeHtml(item.employeeName)}</td><td>${formatDate(item.startedAt)}</td><td>${formatDuration(item)}</td><td><span class="tag bad">${item.overMinutes}m</span></td></tr>`).join("");
 }
 
 function refreshVisibleHistoryAfterBreak() {
@@ -1057,7 +1122,7 @@ function showLogin() { els.loginOverlay.classList.remove("hidden"); }
 function hideLogin() { els.loginOverlay.classList.add("hidden"); }
 function showLoginError(message) { els.loginError.style.display = message ? "block" : "none"; els.loginError.textContent = message; }
 function setSync(text) { els.syncLabel.textContent = text; }
-function disableBreakButtons(disabled) { els.start15Btn.disabled = disabled || Boolean(state.dashboard?.activeBreak); els.start60Btn.disabled = disabled || Boolean(state.dashboard?.activeBreak); els.endBreakBtn.disabled = disabled || !state.dashboard?.activeBreak; }
+function disableBreakButtons(disabled) { const locked = disabled || state.breakActionInFlight; els.start15Btn.disabled = locked || Boolean(state.dashboard?.activeBreak); els.start60Btn.disabled = locked || Boolean(state.dashboard?.activeBreak); els.endBreakBtn.disabled = locked || !state.dashboard?.activeBreak; }
 function showToast(message) { els.toast.textContent = message; els.toast.classList.add("show"); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 3000); }
 function formatDateTime(value) { return value ? new Date(value).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "-"; }
 function formatDate(value) { return new Date(value).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" }); }
