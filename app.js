@@ -284,8 +284,10 @@ async function assertTrustedDevice(profile, deviceId) {
 async function loadDashboard({ silent = false } = {}) {
   if (!state.profile) throw new Error("Not signed in.");
 
-  const dashboard = await buildDashboard(state.profile);
-  state.dashboard = dashboard;
+  const dashboard = await buildDashboard(state.profile, { silent });
+  state.dashboard = silent && state.dashboard
+    ? { ...state.dashboard, ...dashboard }
+    : dashboard;
   if (!silent) {
     state.statsDetailedRows = null;
     state.teamHistoryDetailed = null;
@@ -304,7 +306,7 @@ async function loadDashboard({ silent = false } = {}) {
   }
 }
 
-async function buildDashboard(profile) {
+async function buildDashboard(profile, { silent = false } = {}) {
   const sinceIso = new Date(Date.now() - HISTORY_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const dashboard = {
     activeBreak: null,
@@ -322,40 +324,46 @@ async function buildDashboard(profile) {
 
   if (profile.role !== "admin") {
     dashboard.activeBreak = await getSingleRow("active_breaks", "employee_email", profile.email);
-    dashboard.myHistory = await getRows("break_history", (query) => query
-      .eq("employee_email", profile.email)
-      .gte("started_at", sinceIso)
-      .order("ended_at", { ascending: false })
-      .limit(25));
-    dashboard.myHistoryCount = await getCount("break_history", (query) => query.eq("employee_email", profile.email));
-    dashboard.myOverbreakCount = await getCount("break_history", (query) => query.eq("employee_email", profile.email).gt("over_minutes", 0));
+    if (!silent) {
+      dashboard.myHistory = await getRows("break_history", (query) => query
+        .eq("employee_email", profile.email)
+        .gte("started_at", sinceIso)
+        .order("ended_at", { ascending: false })
+        .limit(25));
+      dashboard.myHistoryCount = await getCount("break_history", (query) => query.eq("employee_email", profile.email));
+      dashboard.myOverbreakCount = await getCount("break_history", (query) => query.eq("employee_email", profile.email).gt("over_minutes", 0));
+    }
   }
 
   if (profile.role === "tl") {
     dashboard.teamLive = await getRows("active_breaks", (query) => query
       .eq("tl_email", profile.email)
       .order("started_at", { ascending: true }));
-    dashboard.teamHistory = await getRows("break_history", (query) => query
-      .eq("tl_email", profile.email)
-      .gte("started_at", sinceIso)
-      .order("ended_at", { ascending: false })
-      .limit(50));
-    dashboard.teamOverbreaks = await getRows("break_history", (query) => query
-      .eq("tl_email", profile.email)
-      .gt("over_minutes", 0)
-      .gte("started_at", sinceIso)
-      .order("ended_at", { ascending: false })
-      .limit(30));
-    dashboard.teamOverbreakCount = await getCount("break_history", (query) => query.eq("tl_email", profile.email).gt("over_minutes", 0));
+    if (!silent) {
+      dashboard.teamHistory = await getRows("break_history", (query) => query
+        .eq("tl_email", profile.email)
+        .gte("started_at", sinceIso)
+        .order("ended_at", { ascending: false })
+        .limit(50));
+      dashboard.teamOverbreaks = await getRows("break_history", (query) => query
+        .eq("tl_email", profile.email)
+        .gt("over_minutes", 0)
+        .gte("started_at", sinceIso)
+        .order("ended_at", { ascending: false })
+        .limit(30));
+      dashboard.teamOverbreakCount = await getCount("break_history", (query) => query.eq("tl_email", profile.email).gt("over_minutes", 0));
+    }
   }
 
   if (profile.role === "admin") {
     dashboard.adminActiveBreaks = await getRows("active_breaks", (query) => query.order("started_at", { ascending: true }));
-    dashboard.adminHistory = await getRows("break_history", (query) => query
-      .gte("started_at", sinceIso)
-      .order("ended_at", { ascending: false })
-      .limit(200));
-    dashboard.trustedDevices = await getRows("trusted_devices", (query) => query.order("employee_email", { ascending: true }));
+    if (!silent) {
+      dashboard.adminHistory = await getRows("break_history", (query) => query
+        .gte("started_at", sinceIso)
+        .order("ended_at", { ascending: false })
+        .limit(200));
+      dashboard.trustedDevices = await getRows("trusted_devices", (query) => query.order("employee_email", { ascending: true }));
+    }
   }
 
   return dashboard;
@@ -642,7 +650,7 @@ async function endBreak() {
     const { error: deleteError } = await supabase.from("active_breaks").delete().eq("employee_email", state.profile.email);
     if (deleteError) throw new Error(deleteError.message);
 
-    await loadDashboard({ silent: true });
+    await loadDashboard({ silent: false });
     refreshVisibleHistoryAfterBreak();
     showToast("Break ended.");
   } catch (error) {
@@ -702,6 +710,8 @@ function stopPolling() {
 }
 
 function shouldPollInCurrentTab() {
+  if (!state.profile) return true;
+  if (state.profile.role === "agent") return document.visibilityState === "visible";
   return true;
 }
 
@@ -725,7 +735,7 @@ function startRealtime() {
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "break_history" }, async () => {
       try {
-        await loadDashboard({ silent: true });
+        await loadDashboard({ silent: false });
         refreshVisibleHistoryAfterBreak();
       } catch (_) {}
     })
