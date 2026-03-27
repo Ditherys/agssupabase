@@ -285,9 +285,11 @@ async function loadDashboard({ silent = false } = {}) {
   if (!state.profile) throw new Error("Not signed in.");
 
   const dashboard = await buildDashboard(state.profile, { silent });
-  state.dashboard = silent && state.dashboard
-    ? { ...state.dashboard, ...dashboard }
-    : dashboard;
+  if (silent && state.dashboard) {
+    state.dashboard = mergeSilentDashboard(state.dashboard, dashboard);
+  } else {
+    state.dashboard = dashboard;
+  }
   if (!silent) {
     state.statsDetailedRows = null;
     state.teamHistoryDetailed = null;
@@ -304,6 +306,15 @@ async function loadDashboard({ silent = false } = {}) {
   if (!silent && state.profile.role === "admin" && hasAdminHistoryFilters()) {
     refreshAdminHistoryDetail();
   }
+}
+
+function mergeSilentDashboard(current, incoming) {
+  return {
+    ...current,
+    activeBreak: incoming.activeBreak,
+    teamLive: Array.isArray(incoming.teamLive) ? incoming.teamLive : current.teamLive,
+    adminActiveBreaks: Array.isArray(incoming.adminActiveBreaks) ? incoming.adminActiveBreaks : current.adminActiveBreaks
+  };
 }
 
 async function buildDashboard(profile, { silent = false } = {}) {
